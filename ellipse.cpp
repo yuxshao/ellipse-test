@@ -138,23 +138,11 @@ void algo_ellipse_old(int x1, int y1, int x2, int y2, void *data, AlgoPixel proc
   rx = ABS(x1 - x2);
   ry = ABS(y1 - y2);
 
-  if (rx == 1) {
-    for (int y = y1; y <= y2; ++y) proc(x2, y, data);
-    rx--;
-  }
-  if (rx == 0) {
-    for (int y = y1; y <= y2; ++y) proc(x1, y, data);
-    return ;
-  }
+  if (rx == 1) { algo_line(x2, y1, x2, y2, data, proc); rx--; }
+  if (rx == 0) { algo_line(x1, y1, x1, y2, data, proc); return; }
 
-  if (ry == 1) {
-    for (int x = x1; x <= x2; ++x) proc(x, y2, data);
-    ry--;
-  }
-  if (ry == 0) {
-    for (int x = x1; x <= x2; ++x) proc(x, y1, data);
-    return;
-  }
+  if (ry == 1) { algo_line(x1, y2, x2, y2, data, proc); ry--; }
+  if (ry == 0) { algo_line(x1, y1, x2, y1, data, proc); return; }
 
   rx /= 2;
   ry /= 2;
@@ -180,6 +168,7 @@ void algo_ellipse_old(int x1, int y1, int x2, int y2, void *data, AlgoPixel proc
   yy = ry * ry;
 
   /* Do the 'x direction' part of the arc. */
+
   x = 0;
   y = ry;
   xa = 0;
@@ -218,6 +207,7 @@ void algo_ellipse_old(int x1, int y1, int x2, int y2, void *data, AlgoPixel proc
     }
 
   /* Do the 'y direction' part of the arc. */
+
   x = rx;
   y = 0;
   xa = yy * 2 * rx;
