@@ -1,5 +1,8 @@
 #include <iostream>
-#include "alg.h"
+
+typedef void (*AlgoPixel)(int x, int y, void *data);
+void algo_ellipse(int x1, int y1, int x2, int y2, void *data, AlgoPixel proc);
+void algo_ellipse_old(int x1, int y1, int x2, int y2, void *data, AlgoPixel proc);
 
 const int sx = 50;
 const int sy = 50;

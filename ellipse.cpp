@@ -1,43 +1,56 @@
+// Two ellipse drawing algorithms.
 #include "alg-other.h"
 
-static int bresenham_ellipse_error(int rx, int ry, int x, int y) {
-  return x*x*ry*ry + y*y*rx*rx - rx*rx*ry*ry;
-}
-
-// Initialize positions x and y for Bresenham's algorithm
-static void bresenham_ellipse_init(int rx, int ry, int *px, int *py) {
-  // Start at the fatter pole
-  if (rx < ry) { *px = 0; *py = ry; }
-  else { *px = rx; *py = 0; }
-}
-
-// Move to next pixel to draw, according to Bresenham's algorithm
-static void bresenham_ellipse_step(int rx, int ry, int *px, int *py) {
-  int &x = *px, &y = *py;
-  // Move towards the skinnier pole. Having 2 cases isn't needed, but it ensures
-  // swapping rx and ry is the same as rotating 90 degrees.
-  if (rx < ry) {
-    int ex = bresenham_ellipse_error(rx, ry, x, y-1);
-    int ey = bresenham_ellipse_error(rx, ry, x+1, y);
-    int exy = bresenham_ellipse_error(rx, ry, x+1, y-1);
-    if (ex + exy < 0) ++x;
-    if (ey + exy > 0) --y;
+/* Additional helper functions for the ellipse-drawing helper function
+   below corresponding to routines in Bresenham's algorithm. */
+namespace {
+  int bresenham_ellipse_error(int rx, int ry, int x, int y) {
+    return x*x*ry*ry + y*y*rx*rx - rx*rx*ry*ry;
   }
-  else {
-    int ex = bresenham_ellipse_error(rx, ry, x, y+1);
-    int ey = bresenham_ellipse_error(rx, ry, x-1, y);
-    int exy = bresenham_ellipse_error(rx, ry, x-1, y+1);
-    if (ex + exy > 0) --x;
-    if (ey + exy < 0) ++y;
+
+  // Initialize positions x and y for Bresenham's algorithm
+  void bresenham_ellipse_init(int rx, int ry, int *px, int *py) {
+    // Start at the fatter pole
+    if (rx > ry) { *px = 0; *py = ry; }
+    else { *px = rx; *py = 0; }
+  }
+
+  // Move to next pixel to draw, according to Bresenham's algorithm
+  void bresenham_ellipse_step(int rx, int ry, int *px, int *py) {
+    int &x = *px, &y = *py;
+    // Move towards the skinnier pole. Having 2 cases isn't needed, but it ensures
+    // swapping rx and ry is the same as rotating 90 degrees.
+    if (rx > ry) {
+      int ex = bresenham_ellipse_error(rx, ry, x, y-1);
+      int ey = bresenham_ellipse_error(rx, ry, x+1, y);
+      int exy = bresenham_ellipse_error(rx, ry, x+1, y-1);
+      if (ex + exy < 0) ++x;
+      if (ey + exy > 0) --y;
+    }
+    else {
+      int ex = bresenham_ellipse_error(rx, ry, x, y+1);
+      int ey = bresenham_ellipse_error(rx, ry, x-1, y);
+      int exy = bresenham_ellipse_error(rx, ry, x-1, y+1);
+      if (ex + exy > 0) --x;
+      if (ey + exy < 0) ++y;
+    }
   }
 }
 
+/* Helper function for the ellipse drawing routines. Calculates the
+   points of an ellipse which fits onto the rectangle specified by x1,
+   y1, x2 and y2, and calls the specified routine for each one. The
+   output proc has the same format as for do_line, and if the width or
+   height of the ellipse is only 1 or 2 pixels, do_line will be
+   called.
+
+   Copyright (C) 2002 by Elias Pschernig (eliaspschernig@aon.at)
+   for Allegro 4.x.
+
+   Adapted for ASEPRITE by David A. Capello. */
 void algo_ellipse(int x1, int y1, int x2, int y2, void *data, AlgoPixel proc) {
   int mx, my, rx, ry;
-
   int x, y;
-  int exy, ex, ey;
-
   int mx2, my2;
 
   mx = (x1 + x2) / 2;
@@ -47,23 +60,11 @@ void algo_ellipse(int x1, int y1, int x2, int y2, void *data, AlgoPixel proc) {
   rx = ABS(x1 - x2);
   ry = ABS(y1 - y2);
 
-  if (rx == 1) {
-    for (int y = y1; y <= y2; ++y) proc(x2, y, data);
-    rx--;
-  }
-  if (rx == 0) {
-    for (int y = y1; y <= y2; ++y) proc(x1, y, data);
-    return ;
-  }
+  if (rx == 1) { algo_line(x2, y1, x2, y2, data, proc); rx--; }
+  if (rx == 0) { algo_line(x1, y1, x1, y2, data, proc); return; }
 
-  if (ry == 1) {
-    for (int x = x1; x <= x2; ++x) proc(x, y2, data);
-    ry--;
-  }
-  if (ry == 0) {
-    for (int x = x1; x <= x2; ++x) proc(x, y1, data);
-    return;
-  }
+  if (ry == 1) { algo_line(x1, y2, x2, y2, data, proc); ry--; }
+  if (ry == 0) { algo_line(x1, y1, x2, y1, data, proc); return; }
 
   rx /= 2;
   ry /= 2;
@@ -85,7 +86,7 @@ void algo_ellipse(int x1, int y1, int x2, int y2, void *data, AlgoPixel proc) {
     proc(mx - rx, my2, data);
   }
 
-  /* Initialize drawing position */
+  /* Initialize drawing position at a pole. */
   bresenham_ellipse_init(rx, ry, &x, &y);
 
   for (;;) {
@@ -93,8 +94,8 @@ void algo_ellipse(int x1, int y1, int x2, int y2, void *data, AlgoPixel proc) {
     bresenham_ellipse_step(rx, ry, &x, &y);
 
     /* Edge conditions */
-    if (y == 0 && x < rx) ++y; // don't draw on horizontal radius except at pole
-    if (x == 0 && y < ry) ++x; // don't draw on vertical radius except at pole
+    if (y == 0 && x < rx) ++y; // don't move to horizontal radius except at pole
+    if (x == 0 && y < ry) ++x; // don't move to vertical radius except at pole
     if (y <= 0 || x <= 0) break; // stop before pole, since it's already drawn
 
     /* Process pixel */
@@ -106,6 +107,17 @@ void algo_ellipse(int x1, int y1, int x2, int y2, void *data, AlgoPixel proc) {
 }
 
 
+/* Helper function for the ellipse drawing routines. Calculates the
+   points of an ellipse which fits onto the rectangle specified by x1,
+   y1, x2 and y2, and calls the specified routine for each one. The
+   output proc has the same format as for do_line, and if the width or
+   height of the ellipse is only 1 or 2 pixels, do_line will be
+   called.
+
+   Copyright (C) 2002 by Elias Pschernig (eliaspschernig@aon.at)
+   for Allegro 4.x.
+
+   Adapted for ASEPRITE by David A. Capello. */
 void algo_ellipse_old(int x1, int y1, int x2, int y2, void *data, AlgoPixel proc)
 {
   int mx, my, rx, ry;

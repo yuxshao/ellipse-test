@@ -1,4 +1,6 @@
-#include <iostream>
+// Just a set of functions that the ellipse algorithms need.
+// Copyright Aseprite
+#include <algorithm>
 typedef void (*AlgoPixel)(int x, int y, void *data);
 
 const int ABS(int a) { return (a < 0 ? -a : a); }
